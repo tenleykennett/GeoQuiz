@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>GeoQuiz</title>
+
+    <link rel="stylesheet" href="style.css">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+</head>
+
+<body>
+
+    <nav>
+        <div class="logo">
+            GeoQuiz
+        </div>
+
+        <div class="nav-links">
+            <a href="#">How to Play</a>
+            <a href="#">About</a>
+        </div>
+    </nav>
+
+
+    <main class="hero">
+        <section id="game" class="game">
+
+            <div class="country-selector">
+                <label for="country-select">
+                    Test a country:
+                </label>
+
+                <select id="country-select">
+                    <option value="">Select a country</option>
+                </select>
+            </div>
+
+            <div id="map"></div>
+
+
+            <div class="game-controls">
+
+                <div class="guess-area">
+
+                    <div class="guess-input-wrapper">
+                        <input type="text" id="guess-input" placeholder="Guess the country..." autocomplete="off" />
+
+                        <div id="autocomplete-list" class="autocomplete-list"></div>
+                    </div>
+
+                    <button id="guess-button">
+                        Submit
+                    </button>
+
+                    <p id="message"></p>
+
+                </div>
+
+                <div class="secondary-controls">
+                
+                    <button id="give-up-button">
+                        Give Up
+                    </button>
+                
+                    <button id="new-country-button">
+                        New Country
+                    </button>
+                
+                    <button id="continue-button">
+                        Continue On →
+                    </button>
+                
+                </div>
+                
+                <button id="explore-button">
+                    Explore <span id="explore-country-name"></span>
+                </button>
+
+            </div>
+
+
+
+        </section>
+
+
+
+<!-- 
+        <div class="features">
+
+            <div class="feature">
+                <h3>Identify</h3>
+                <p>
+                    Recognize countries from their borders.
+                </p>
+            </div>
+
+            <div class="feature">
+                <h3>Explore</h3>
+                <p>
+                    Travel from country to country through neighboring borders.
+                </p>
+            </div>
+
+            <div class="feature">
+                <h3>Challenge</h3>
+                <p>
+                    Test your geography knowledge and improve your score.
+                </p>
+            </div>
+
+        </div> -->
+
+    </main>
+
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="game.js"></script>
+
+</body>
+
+
+</html>
+```

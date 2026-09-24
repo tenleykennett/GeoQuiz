@@ -422,6 +422,20 @@ function giveHint() {
         }
     }
 
+    if (hintCount === 3) {
+
+        if (currentCountry.data.capital) {
+
+            hintText =
+                `The country's capital is ${currentCountry.data.capital}.`;
+
+        } else {
+
+            hintText =
+                "This country does not have a listed capital.";
+        }
+    }
+
     hintMessage.textContent = hintText;
 
     // Add hint to permanent history

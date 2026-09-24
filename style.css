@@ -7,7 +7,7 @@
     --sage-green: #678d58;
     --muted-olive: #a6c48a;
     --champagne-mist: #f6e7cb;
-    --light-bronze: #e09f7d;
+    --light-bronze: #E3AB8C;
 }
 
 
@@ -248,7 +248,7 @@ nav {
 
 .country-selector label {
     color: var(--mauve-shadow);
-    font-weight: bold;
+    /* font-weight: bold; */
 }
 
 #country-select {
@@ -352,15 +352,15 @@ nav {
 }
 
 #give-up-button {
-    background: var(--light-bronze);
-}
-
-#give-up-button:hover {
     background: var(--mauve-shadow);
 }
 
+#give-up-button:hover {
+    background: var(--light-bronze);
+}
+
 #new-country-button {
-    background: var(--sage-green);
+    background: var(--mauve-shadow);
 }
 
 #new-country-button:hover {
@@ -426,4 +426,51 @@ nav {
 #explore-button:hover {
     background: var(--muted-olive);
     color: white;
+}
+
+
+#hint-area {
+    text-align: center;
+    margin-top: 12px;
+}
+
+#hint-button {
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--mauve-shadow);
+    font-size: 15px;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+#hint-button:hover {
+    color: var(--light-bronze);
+}
+
+#hint-message {
+    margin-top: 10px;
+    font-weight: bold;
+    color: var(--mauve-shadow);
+}
+
+#hint-history {
+    display: none;
+    margin-top: 15px;
+    color: var(--mauve-shadow);
+}
+
+#hint-history strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+#hint-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#hint-list li {
+    margin-top: 4px;
 }

@@ -2,7 +2,7 @@ let countries = {};
 let geojsonData = {};
 let currentCountry = null;
 let countryLayer = null;
-
+let hintCount = 0;
 
 // Create map with all interaction disabled
 const map = L.map("map", {
@@ -94,7 +94,7 @@ function showCountry(code) {
     countryLayer = L.geoJSON(feature, {
         style: {
             color: "#5e4c5a",
-            weight: 2,
+            weight: 1,
             fillColor: "#678d58",
             fillOpacity: 0.6
         }
@@ -199,27 +199,33 @@ function checkGuess() {
     const guessedCode = guessedCountry[0];
 
     // Correct or incorrect
-    if (currentCountry && guessedCode === currentCountry.code) {
+if (currentCountry && guessedCode === currentCountry.code) {
 
-        message.textContent = "✓ Correct!";
+    message.textContent = "✓ Correct!";
 
-        // Hide Give Up
-        document.getElementById("give-up-button").style.display = "none";
+    // Hide Hint
+    document.getElementById("hint-button").style.display = "none";
 
-        // Show Continue On
-        document.getElementById("continue-button").style.display = "inline-block";
+    // Hide Submit
+    document.getElementById("guess-button").style.display = "none";
 
-        // Show Explore option
-        const exploreButton = document.getElementById("explore-button");
-        const exploreName = document.getElementById("explore-country-name");
+    // Hide Give Up
+    document.getElementById("give-up-button").style.display = "none";
 
-        exploreName.textContent = currentCountry.data.name;
-        exploreButton.style.display = "block";
+    // Show Continue On
+    document.getElementById("continue-button").style.display = "inline-block";
 
-    } else {
+    // Show Explore
+    const exploreButton = document.getElementById("explore-button");
+    const exploreName = document.getElementById("explore-country-name");
 
-        message.textContent = "Incorrect. Try again.";
-    }
+    exploreName.textContent = currentCountry.data.name;
+    exploreButton.style.display = "block";
+
+} else {
+
+    message.textContent = "Incorrect. Try again.";
+}
 
     input.value = "";
     input.focus();
@@ -236,14 +242,22 @@ function giveUp() {
     const inputWrapper = document.querySelector(".guess-input-wrapper");
     const guessButton = document.getElementById("guess-button");
     const giveUpButton = document.getElementById("give-up-button");
+
+    const exploreButton = document.getElementById("explore-button");
+    const exploreName = document.getElementById("explore-country-name");
+
     const message = document.getElementById("message");
 
     inputWrapper.style.display = "none";
     guessButton.style.display = "none";
     giveUpButton.style.display = "none";
-
+    document.getElementById("hint-area").style.display = "none";
+    
     message.textContent =
         `The country was: ${currentCountry.data.name}`;
+
+    exploreName.textContent = currentCountry.data.name;
+    exploreButton.style.display = "block";
 }
 
 
@@ -273,7 +287,7 @@ function setupAutocomplete() {
 
         // Find possible matches
         const matches = countryNames.filter(name =>
-            name.toLowerCase().includes(query)
+            name.toLowerCase().startsWith(query)
         );
 
         // No matches
@@ -317,6 +331,15 @@ function setupAutocomplete() {
 // Reset guessing interface
 function resetGuessInterface() {
 
+    hintCount = 0;
+
+    document.getElementById("hint-button").style.display = "inline";
+    document.getElementById("hint-message").textContent = "";
+    document.getElementById("hint-list").innerHTML = "";
+    document.getElementById("hint-area").style.display = "block";
+    document.getElementById("hint-history").style.display = "none";
+    hintCount = 0;
+
     const inputWrapper = document.querySelector(".guess-input-wrapper");
     const guessButton = document.getElementById("guess-button");
     const giveUpButton = document.getElementById("give-up-button");
@@ -342,6 +365,81 @@ function resetGuessInterface() {
 
     list.innerHTML = "";
     list.style.display = "none";
+}
+
+function giveHint() {
+
+    if (!currentCountry) {
+        return;
+    }
+
+    // Don't give more than 3 hints
+    if (hintCount >= 3) {
+        return;
+    }
+
+    hintCount++;
+
+    const hintMessage = document.getElementById("hint-message");
+    const hintList = document.getElementById("hint-list");
+
+    let hintText = "";
+
+    // Hint 1: Continent
+    if (hintCount === 1) {
+
+        hintText =
+            `The country is in ${currentCountry.data.continent}.`;
+
+    }
+
+    if (hintCount === 2) {
+
+    const neighbors = currentCountry.data.neighbors || [];
+
+        if (neighbors.length === 0) {
+
+            hintText =
+                "The country does not border another country.";
+
+        } else {
+
+            const randomNeighbor =
+                neighbors[Math.floor(Math.random() * neighbors.length)];
+
+            const neighborCountry = countries[randomNeighbor];
+
+            if (neighborCountry) {
+
+                hintText =
+                    `The country borders ${neighborCountry.name}.`;
+
+            } else {
+
+                hintText =
+                    "The country does not border another country.";
+            }
+        }
+    }
+
+    hintMessage.textContent = hintText;
+
+    // Add hint to permanent history
+    const hintItem = document.createElement("li");
+    hintItem.textContent = hintText;
+
+    hintList.appendChild(hintItem);
+    document.getElementById("hint-history").style.display = "block";
+
+    // Clear temporary message
+    setTimeout(() => {
+        hintMessage.textContent = "";
+    }, 3000);
+
+    // Disable button after 3 hints
+    if (hintCount >= 3) {
+        document.getElementById("hint-button").style.display = "none";
+    }
 }
 
 // Guess button
@@ -388,6 +486,17 @@ document
         );
     });
 
+document
+    .getElementById("continue-button")
+    .addEventListener("click", () => {
+
+        console.log("capital round")
+
+    });
+
+document
+    .getElementById("hint-button")
+    .addEventListener("click", giveHint);
 
 // Load everything
 loadGameData().then(() => {

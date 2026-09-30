@@ -129,7 +129,7 @@
         "continent": "Europe",
         "subregion": "Southern Europe",
         "area_km2": 468,
-        "population": 90021,
+        "population": 90105,
         "currency": {
             "code": "EUR",
             "name": "Euro",
@@ -288,7 +288,7 @@
         "continent": "Asia",
         "subregion": "Western Asia",
         "area_km2": 29743,
-        "population": 3096900,
+        "population": 3103900,
         "currency": {
             "code": "AMD",
             "name": "Armenian dram",
@@ -344,7 +344,7 @@
         "continent": "Oceania",
         "subregion": "Australia and New Zealand",
         "area_km2": 7692024,
-        "population": 27801023,
+        "population": 27921150,
         "currency": {
             "code": "AUD",
             "name": "Australian dollar",
@@ -1124,7 +1124,7 @@
         "continent": "North America",
         "subregion": "North America",
         "area_km2": 9984670,
-        "population": 41417056,
+        "population": 41798407,
         "currency": {
             "code": "CAD",
             "name": "Canadian dollar",
@@ -2366,7 +2366,7 @@
         "continent": "Europe",
         "subregion": "Western Europe",
         "area_km2": 357114,
-        "population": 83467117,
+        "population": 83298787,
         "currency": {
             "code": "EUR",
             "name": "Euro",
@@ -3149,7 +3149,7 @@
         "continent": "Africa",
         "subregion": "Western Africa",
         "area_km2": 322463,
-        "population": 31500000,
+        "population": 33293101,
         "currency": {
             "code": "XOF",
             "name": "West African CFA franc",
@@ -3676,7 +3676,7 @@
         "continent": "Europe",
         "subregion": "Northern Europe",
         "area_km2": 65300,
-        "population": 2886179,
+        "population": 2887761,
         "currency": {
             "code": "EUR",
             "name": "Euro",
@@ -5075,7 +5075,7 @@
         "continent": "Europe",
         "subregion": "Central Europe",
         "area_km2": 312679,
-        "population": 37243000,
+        "population": 37232000,
         "currency": {
             "code": "PLN",
             "name": "Polish złoty",
@@ -5546,7 +5546,7 @@
         "continent": "Asia",
         "subregion": "Western Asia",
         "area_km2": 2149690,
-        "population": 33702731,
+        "population": 35325004,
         "currency": {
             "code": "SAR",
             "name": "Saudi riyal",

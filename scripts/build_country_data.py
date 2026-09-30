@@ -4,8 +4,20 @@ import os
 import geopandas as gpd
 import requests
 
+# Countries where we only want the mainland geometry.
+# The mainland is represented by the largest connected polygon.
+MAINLAND_ONLY = {
+    "FRA",  # France
+    "RUS",  # Russia
+    "NLD",  # Netherlands
+    "NOR", # Norway
+    "ESP", # Spain
+    "USA", #USA
+}
 
-
+NATURAL_EARTH_CODE_MAPPING = {
+    "KOS": "UNK",
+}
 
 API_URL = "https://api.restcountries.com/countries/v5"
 
@@ -175,210 +187,24 @@ def transform_country(country):
         }
     }
 
-def build_geojson(country_metadata):
-    print()
-    print("Loading Natural Earth country boundaries...")
+def keep_mainland(geometry):
+    """
+    Keep the largest connected polygon in a country's geometry.
 
-    countries_gdf = gpd.read_file(COUNTRIES_SHP)
+    This removes distant overseas territories/islands that cause
+    the map to zoom way out.
+    """
 
-    print(
-        f"Base country features: {len(countries_gdf)}"
-    )
+    if geometry.geom_type == "Polygon":
+        return geometry
 
-    print()
-    print("Loading Natural Earth disputed areas...")
-
-    disputed_gdf = gpd.read_file(DISPUTED_SHP)
-
-    print(
-        f"Disputed features: {len(disputed_gdf)}"
-    )
-
-    # Make sure both datasets use the same coordinate system.
-    if disputed_gdf.crs != countries_gdf.crs:
-        disputed_gdf = disputed_gdf.to_crs(
-            countries_gdf.crs
+    if geometry.geom_type == "MultiPolygon":
+        return max(
+            geometry.geoms,
+            key=lambda polygon: polygon.area
         )
 
-    # ---------------------------------------------------------------
-    # Disputed territories that should be merged explicitly.
-    #
-    # These are cases where the territory is not one of our
-    # playable countries but should be represented as part of the
-    # administering/claimed country for GeoQuiz.
-    # ---------------------------------------------------------------
-
-    special_merges = {
-        "Somaliland": "SOM",
-        "W. Sahara": "MAR",
-    }
-
-    # ---------------------------------------------------------------
-    # Merge special cases.
-    # ---------------------------------------------------------------
-
-    for disputed_name, country_code in special_merges.items():
-
-        rows = disputed_gdf[
-            disputed_gdf["BRK_NAME"] == disputed_name
-        ]
-
-        if rows.empty:
-            print(
-                f"WARNING: Could not find "
-                f"{disputed_name}"
-            )
-            continue
-
-        matches = countries_gdf[
-            countries_gdf["ISO_A3"] == country_code
-        ]
-
-        if matches.empty:
-            print(
-                f"WARNING: Could not find base country "
-                f"{country_code}"
-            )
-            continue
-
-        country_index = matches.index[0]
-
-        for _, disputed in rows.iterrows():
-
-            countries_gdf.at[
-                country_index,
-                "geometry"
-            ] = (
-                countries_gdf.loc[
-                    country_index,
-                    "geometry"
-                ].union(
-                    disputed.geometry
-                )
-            )
-
-            print(
-                f"Merged {disputed_name} "
-                f"into {country_code}"
-            )
-
-    # ---------------------------------------------------------------
-    # Automatically merge disputed areas where:
-    #
-    # 1. Natural Earth identifies the administering country
-    # 2. That country is one of our playable countries
-    # 3. The disputed feature is NOT itself a playable country
-    #
-    # ---------------------------------------------------------------
-
-    playable_codes = {
-        code
-        for code, country in country_metadata.items()
-        if country["playable"]
-    }
-
-    playable_names = {
-        country["name"]
-        for country in country_metadata.values()
-        if country["playable"]
-    }
-
-    for _, disputed in disputed_gdf.iterrows():
-
-        brk_name = disputed["BRK_NAME"]
-
-        # Don't process the explicit special cases twice.
-        if brk_name in special_merges:
-            continue
-
-        # ISO_A3 is often -99 in the disputed dataset.
-        # ADM0_A3 is the Natural Earth administrative country code.
-        country_code = disputed["ADM0_A3"]
-
-        # Ignore features without a useful country code.
-        if country_code in (None, "", "-99"):
-            continue
-
-        # Only merge into playable countries.
-        if country_code not in playable_codes:
-            continue
-
-        # If the disputed feature is itself a playable country,
-        # leave it alone.
-        if brk_name in playable_names:
-            continue
-
-        matches = countries_gdf[
-            countries_gdf["ISO_A3"] == country_code
-        ]
-
-        if matches.empty:
-            continue
-
-        country_index = matches.index[0]
-
-        countries_gdf.at[
-            country_index,
-            "geometry"
-        ] = (
-            countries_gdf.loc[
-                country_index,
-                "geometry"
-            ].union(
-                disputed.geometry
-            )
-        )
-
-        print(
-            f"Merged {brk_name} "
-            f"into {country_code}"
-        )
-
-    # ---------------------------------------------------------------
-    # Keep only our 196 playable countries.
-    # ---------------------------------------------------------------
-
-    countries_gdf = countries_gdf[
-        countries_gdf["ISO_A3"].isin(
-            playable_codes
-        )
-    ].copy()
-
-    # Make sure geometry is valid after unions.
-    countries_gdf["geometry"] = (
-        countries_gdf["geometry"].make_valid()
-    )
-
-    # Add simple properties for GeoQuiz.
-    countries_gdf["country_code"] = (
-        countries_gdf["ISO_A3"]
-    )
-
-    countries_gdf["country_name"] = (
-        countries_gdf["ISO_A3"].map(
-            lambda code:
-            country_metadata[code]["name"]
-        )
-    )
-
-    countries_gdf.to_file(
-        GEOJSON_OUTPUT,
-        driver="GeoJSON"
-    )
-
-    print()
-    print(
-        f"Created {GEOJSON_OUTPUT}"
-    )
-
-    print(
-        f"Playable GeoJSON features: "
-        f"{len(countries_gdf)}"
-    )
-    
-# -------------------------------------------------------------------
-# BUILD COUNTRIES.JSON
-# -------------------------------------------------------------------
+    return geometry
 
 def build_country_metadata():
     print("Loading playable country list...")
@@ -526,8 +352,16 @@ def build_geojson(country_metadata):
             continue
 
         # Find matching Natural Earth country.
+        # Natural Earth sometimes uses ISO_A3 = "-99"
+        # and stores the real code in ADM0_A3.
         matches = countries_gdf[
-            countries_gdf["ISO_A3"] == country_code
+            (
+                countries_gdf["ISO_A3"] == country_code
+            )
+            |
+            (
+                countries_gdf["ADM0_A3"] == country_code
+            )
         ]
 
         if matches.empty:
@@ -540,7 +374,10 @@ def build_geojson(country_metadata):
 
         index = matches.index[0]
 
-        countries_gdf.at[index, "geometry"] = (
+        countries_gdf.at[
+            index,
+            "geometry"
+        ] = (
             countries_gdf.loc[index, "geometry"]
             .union(disputed.geometry)
         )
@@ -560,27 +397,75 @@ def build_geojson(country_metadata):
         if country["playable"]
     }
 
-    countries_gdf = countries_gdf[
-        countries_gdf["ISO_A3"].isin(playable_codes)
-    ].copy()
-
-    # Make the GeoJSON properties simple and useful.
+    # Natural Earth sometimes uses ISO_A3 = "-99".
+    # In those cases, use ADM0_A3 instead.
     countries_gdf["country_code"] = (
         countries_gdf["ISO_A3"]
+        .where(
+            countries_gdf["ISO_A3"] != "-99",
+            countries_gdf["ADM0_A3"]
+        )
+        .replace(
+            NATURAL_EARTH_CODE_MAPPING
+        )
     )
 
+    countries_gdf = countries_gdf[
+        countries_gdf["country_code"].isin(
+            playable_codes
+        )
+    ].copy()
+
+    # ----------------------------------------------------------------
+    # Remove overseas territories for selected countries.
+    # ----------------------------------------------------------------
+
+    for country_code in MAINLAND_ONLY:
+
+        matches = countries_gdf[
+            countries_gdf["country_code"] == country_code
+        ]
+
+        if matches.empty:
+            continue
+
+        index = matches.index[0]
+
+        countries_gdf.at[
+            index,
+            "geometry"
+        ] = keep_mainland(
+            countries_gdf.loc[index, "geometry"]
+        )
+
+        print(
+            f"Kept mainland geometry for "
+            f"{country_code}"
+        )
+
+    # ----------------------------------------------------------------
+    # Make the GeoJSON properties simple and useful.
+    # ----------------------------------------------------------------
+
     countries_gdf["country_name"] = (
-        countries_gdf["ISO_A3"]
+        countries_gdf["country_code"]
         .map(
             lambda code:
             country_metadata[code]["name"]
         )
     )
 
+    # ----------------------------------------------------------------
     # Validate/fix geometry after unions.
+    # ----------------------------------------------------------------
+
     countries_gdf["geometry"] = (
         countries_gdf["geometry"].make_valid()
     )
+
+    # ----------------------------------------------------------------
+    # Write GeoJSON.
+    # ----------------------------------------------------------------
 
     countries_gdf.to_file(
         GEOJSON_OUTPUT,
@@ -591,11 +476,11 @@ def build_geojson(country_metadata):
     print(
         f"Created {GEOJSON_OUTPUT}"
     )
+
     print(
         f"Playable GeoJSON features: "
         f"{len(countries_gdf)}"
     )
-
 
 # -------------------------------------------------------------------
 # MAIN

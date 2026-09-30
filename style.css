@@ -264,7 +264,7 @@ nav {
 #map {
     width: 700px;
     max-width: 90%;
-    height: 450px;
+    height: 350px;
     margin: 0 auto;
     border-radius: 16px;
     border: 2px solid var(--muted-olive);
@@ -300,12 +300,18 @@ nav {
 
 #guess-input {
     width: 100%;
-    box-sizing: border-box;
+    box-sizing: border-box; 
     padding: 12px 16px;
     border: 2px solid var(--muted-olive);
     border-radius: 8px;
+    background: white;
+    color: #5e4c5a;
     font-size: 16px;
+    font-family: inherit;
+    outline: none;
 }
+
+#guess-input:focus { border-color: var(--sage-green); }
 
 #guess-button {
     padding: 12px 24px;
@@ -321,11 +327,46 @@ nav {
     background: var(--light-bronze);
 }
 
+.guess-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+}
+
+.mode-selector {
+    display: flex;
+    overflow: hidden;
+    border: 2px solid #5e4c5a;
+    border-radius: 999px;
+    background: #f6e7cb;
+}
+
+.mode-option {
+    border: none;
+    background: transparent;
+    color: #5e4c5a;
+    padding: 8px 14px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.mode-option + .mode-option {
+    border-left: 1px solid #5e4c5a;
+}
+
+.mode-option.active {
+    background: #5e4c5a;
+    color: #f6e7cb;
+}
+
 
 /* Correct / incorrect message */
 
 #message {
-    margin: 2px 0 5px;
+    margin: 2px 0 0px;
     min-height: 24px;
     font-weight: bold;
     color: var(--mauve-shadow);
@@ -367,26 +408,9 @@ nav {
     background: var(--light-bronze);
 }
 
-.autocomplete-list {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--champagne-mist);
-    border: 2px solid var(--muted-olive);
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    max-height: 250px;
-    overflow-y: auto;
-    z-index: 1000;
-    display: none;
-}
+#autocomplete-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 220px; overflow-y: auto; background: white; border: 1px solid var(--muted-olive); border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12); z-index: 1000; }
 
-.autocomplete-item {
-    padding: 10px 14px;
-    cursor: pointer;
-    color: var(--mauve-shadow);
-}
+.autocomplete-item { padding: 10px 14px; color: #5e4c5a; font-size: 15px; cursor: pointer; }
 
 .autocomplete-item:hover {
     background: var(--muted-olive);
@@ -473,4 +497,71 @@ nav {
 
 #hint-list li {
     margin-top: 4px;
+}
+
+.country-label {
+    background: none;
+    border: none;
+}
+
+.country-label span {
+    display: block;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--mauve-shadow);
+    text-shadow:
+        0 1px 3px white,
+        1px 0 3px white,
+        0 -1px 3px white,
+        -1px 0 3px white;
+}
+
+.small-neighbor-label {
+    background: transparent;
+    border: none;
+}
+
+.small-neighbor-label-text {
+    display: inline-block;
+    padding: 3px 6px;
+    background: #8e6bbf;
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+#country-info {
+    width: fit-content;
+    margin: 30px auto;
+    text-align: left;
+}
+
+#country-info-name {
+    margin-bottom: 1rem;
+}
+
+#country-info img {
+    display: block;
+    width: 240px;
+    max-height: 160px;
+    object-fit: contain;
+    margin: 0 auto 20px auto;
+}
+
+#country-info h2 {
+    text-align: center;
+}
+
+#country-info img {
+    display: block;
+    width: 240px;
+    max-height: 160px;
+    object-fit: contain;
+    margin: 0 auto 20px auto;
+    filter: drop-shadow(4px 4px 4px rgba(0, 0, 0, 0.50));
 }

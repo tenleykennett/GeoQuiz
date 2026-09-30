@@ -47,10 +47,24 @@
 
                 <div class="guess-area">
 
-                    <div class="guess-input-wrapper">
-                        <input type="text" id="guess-input" placeholder="Guess the country..." autocomplete="off" />
+                    <div class="guess-controls">
+                    
+                        <div class="guess-input-wrapper">
+                            <input type="text" id="guess-input" placeholder="Select country" autocomplete="off">
+                            <div id="autocomplete-list"></div>
+                        </div>
 
-                        <div id="autocomplete-list" class="autocomplete-list"></div>
+                    
+                        <div class="mode-selector">
+                            <button type="button" class="mode-option" id="easy-mode-button">
+                                Easy
+                            </button>
+                    
+                            <button type="button" class="mode-option active" id="hard-mode-button">
+                                Hard
+                            </button>
+                        </div>
+                    
                     </div>
 
                     <button id="guess-button">
@@ -59,7 +73,7 @@
 
                     <p id="message"></p>
 
-                </div>
+
 
                 <div class="secondary-controls">
                 
@@ -76,11 +90,44 @@
                     </button>
                 
                 </div>
+
+                <div id="hint-area">
                 
+                    <button id="hint-button">
+                        Need a hint?
+                    </button>
+                
+                    <div id="hint-message"></div>
+                
+                    <div id="hint-history">
+                        <strong>Hints:</strong>
+                        <ul id="hint-list"></ul>
+                    </div>
+                
+                </div>
+
                 <button id="explore-button">
                     Explore <span id="explore-country-name"></span>
                 </button>
 
+                <div id="country-info" style="display: none;">
+                
+                    <img id="country-flag" alt="Country flag">
+                
+                    <h2 id="country-info-name"></h2>
+                
+                    <p><strong>Official name:</strong> <span id="country-official-name"></span></p>
+                    <p><strong>Capital:</strong> <span id="country-capital"></span></p>
+                    <p><strong>Continent:</strong> <span id="country-continent"></span></p>
+                    <p><strong>Subregion:</strong> <span id="country-subregion"></span></p>
+                    <p><strong>Population:</strong> <span id="country-population"></span></p>
+                    <p><strong>Area:</strong> <span id="country-area"></span> km²</p>
+                    <p><strong>Currency:</strong> <span id="country-currency"></span></p>
+                    <p><strong>Languages:</strong> <span id="country-languages"></span></p>
+                    <p><strong>Neighbors:</strong> <span id="country-neighbors"></span></p>
+                    <p><strong>Landlocked:</strong> <span id="country-landlocked"></span></p>
+                
+                </div>
             </div>
 
 

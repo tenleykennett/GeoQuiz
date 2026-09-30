@@ -1,8 +1,18 @@
 let countries = {};
 let geojsonData = {};
+let gameMode = "hard";
+let worldContextLayers = [];
+
 let currentCountry = null;
 let countryLayer = null;
+
 let hintCount = 0;
+let currentRound = 1;
+
+let neighborLayers = {};
+let guessedNeighbors = new Set();
+
+const SMALL_NEIGHBOR_AREA = 3000;
 
 // Create map with all interaction disabled
 const map = L.map("map", {
@@ -14,16 +24,26 @@ const map = L.map("map", {
     keyboard: false,
     touchZoom: false
 }).setView([20, 0], 2);
+map.createPane("smallNeighborPane");
+map.getPane("smallNeighborPane").style.zIndex = 650;
 
+let neighborLabelLayer = L.layerGroup().addTo(map);
+let smallNeighborHintLayer = L.layerGroup().addTo(map);
 
 // Load game data
 async function loadGameData() {
 
-    const countriesResponse = await fetch("data/countries.json");
-    countries = await countriesResponse.json();
+    const countriesResponse =
+        await fetch("data/countries.json");
 
-    const geojsonResponse = await fetch("data/countries.geojson");
-    geojsonData = await geojsonResponse.json();
+    countries =
+        await countriesResponse.json();
+
+    const geojsonResponse =
+        await fetch("data/countries.geojson");
+
+    geojsonData =
+        await geojsonResponse.json();
 
     console.log(
         "Countries loaded:",
@@ -35,8 +55,11 @@ async function loadGameData() {
         geojsonData.features.length
     );
 
-    populateCountryDropdown();
+    // Set up autocomplete independently.
     setupAutocomplete();
+
+    // Populate the old testing dropdown separately.
+    populateCountryDropdown();
 }
 
 
@@ -45,16 +68,23 @@ function populateCountryDropdown() {
 
     const select = document.getElementById("country-select");
 
+    if (!select) {
+        return;
+    }
+
     const playableCountries = Object.entries(countries)
         .filter(([code, country]) => country.playable)
         .filter(([code]) => {
             return geojsonData.features.some(
-                feature => feature.properties.ISO_A3 === code
+                feature => feature.properties.country_code === code
             );
-        })
-        .sort((a, b) => {
-            return a[1].name.localeCompare(b[1].name);
-        });
+    })
+
+    .sort((a, b) => {
+
+        return a[1].name.localeCompare(b[1].name);
+
+    });
 
     for (const [code, country] of playableCountries) {
 
@@ -72,23 +102,60 @@ function populateCountryDropdown() {
     );
 }
 
+function setGameMode(mode) {
 
-// Display a country
+
+    // If already in this mode, do nothing.
+    if (gameMode === mode) {
+        return;
+    }
+    
+    gameMode = mode;
+
+    document
+        .getElementById("easy-mode-button")
+        .classList.toggle(
+            "active",
+            mode === "easy"
+        );
+
+    document
+        .getElementById("hard-mode-button")
+        .classList.toggle(
+            "active",
+            mode === "hard"
+        );
+
+    newCountry();
+}
+
+document
+    .getElementById("easy-mode-button")
+    .addEventListener("click", () => {
+        setGameMode("easy");
+    });
+
+document
+    .getElementById("hard-mode-button")
+    .addEventListener("click", () => {
+        setGameMode("hard");
+    });
+
+// Display a country and begin Round 1
 function showCountry(code) {
 
-    const feature = geojsonData.features.find(feature => {
-        return feature.properties.ISO_A3 === code;
-    });
+    const feature = geojsonData.features.find(
+        feature => feature.properties.country_code === code
+    );
 
     if (!feature) {
         console.error("No GeoJSON found for:", code);
         return;
     }
 
-    // Remove previous country
-    if (countryLayer) {
-        map.removeLayer(countryLayer);
-    }
+    currentRound = 1;
+
+    clearMapLayers();
 
     // Draw country
     countryLayer = L.geoJSON(feature, {
@@ -112,12 +179,212 @@ function showCountry(code) {
         data: countries[code]
     };
 
-    // Reset the guessing interface
+    // Reset Round 1 interface
     resetGuessInterface();
 }
 
+
+// Start Round 2
+function startNeighborRound() {
+
+    if (!currentCountry) {
+        return;
+    }
+
+    currentRound = 2;
+
+    guessedNeighbors = new Set();
+    neighborLayers = {};
+
+    // Clear previous layers and labels
+    clearMapLayers();
+
+    // Clear small-neighbor arrows
+    smallNeighborHintLayer.clearLayers();
+
+    const currentCode = currentCountry.code;
+    const neighborCodes = currentCountry.data.neighbors || [];
+
+    if (neighborCodes.length === 0) {
+        setupNeighborRoundUI();
+        document.getElementById("message").textContent =
+            `${currentCountry.data.name} has no neighbors... you get a free pass!`;
+
+        document.getElementById("guess-input").parentElement.style.display =
+            "none";
+
+        document.getElementById("guess-button").style.display =
+            "none";
+
+        document.getElementById("give-up-button").style.display =
+            "none";
+
+        document.getElementById("continue-button").style.display =
+            "inline-block";
+
+        return;
+    }
+    // Find the main country
+    const countryFeature = geojsonData.features.find(feature => {
+        return feature.properties.country_code === currentCode;
+    });
+
+    if (!countryFeature) {
+        console.error("No GeoJSON found for:", currentCode);
+        return;
+    }
+
+    // Draw the main country in green
+    countryLayer = L.geoJSON(countryFeature, {
+        style: {
+            color: "#5e4c5a",
+            weight: 1,
+            fillColor: "#678d58",
+            fillOpacity: 0.8
+        }
+    }).addTo(map);
+
+    // Center of the main country
+    const mainCenter = countryLayer.getBounds().getCenter();
+
+    // Draw neighboring countries in light grey
+    neighborCodes.forEach(code => {
+
+        const feature = geojsonData.features.find(feature => {
+            return feature.properties.country_code === code;
+        });
+
+        if (!feature) {
+            return;
+        }
+
+        const layer = L.geoJSON(feature, {
+            style: {
+                color: "#d0d0d0",
+                weight: 1,
+                fillColor: "#d9d9d9",
+                fillOpacity: 0.8
+            }
+        }).addTo(map);
+
+        neighborLayers[code] = layer;
+
+        // ADD TINY NEIGHBOR CIRCLE
+        const neighborData = countries[code];
+
+        if (
+            neighborData &&
+            neighborData.area_km2 !== null &&
+            neighborData.area_km2 <= SMALL_NEIGHBOR_AREA
+        ) {
+
+            const center = layer.getBounds().getCenter();
+
+            L.circle(center, {
+                radius: 40000,
+                color: "#5e4c5a",
+                weight: 2,
+                fill: false,
+                interactive: false,
+                pane: "smallNeighborPane"
+            }).addTo(smallNeighborHintLayer);
+        }
+    });
+
+    countryLayer.bringToFront();
+
+    // Fit map to the main country and its neighbors
+    const allLayers = [
+        countryLayer,
+        ...Object.values(neighborLayers)
+    ];
+
+    const group = L.featureGroup(allLayers);
+
+    map.fitBounds(group.getBounds(), {
+        padding: [40, 40],
+        maxZoom: 5
+    });
+
+    // Set up Round 2 controls
+    setupNeighborRoundUI();
+}
+
+
+// Set up Round 2 interface
+function setupNeighborRoundUI() {
+
+    const inputWrapper =
+        document.querySelector(".guess-input-wrapper");
+
+    const guessButton =
+        document.getElementById("guess-button");
+
+    const giveUpButton =
+        document.getElementById("give-up-button");
+
+    const continueButton =
+        document.getElementById("continue-button");
+
+    const exploreButton =
+        document.getElementById("explore-button");
+
+    const hintArea =
+        document.getElementById("hint-area");
+
+    const message =
+        document.getElementById("message");
+
+    const input =
+        document.getElementById("guess-input");
+
+    // Show guessing controls
+    inputWrapper.style.display = "block";
+    guessButton.style.display = "inline-block";
+    giveUpButton.style.display = "inline-block";
+
+    // Hide things that don't belong in Round 2
+    hintArea.style.display = "none";
+    exploreButton.style.display = "none";
+    continueButton.style.display = "none";
+
+    message.textContent = "";
+    input.value = "";
+    input.focus();
+}
+
+
+// Clear map layers from the previous round/country
+function clearMapLayers() {
+
+    if (countryLayer) {
+        map.removeLayer(countryLayer);
+        countryLayer = null;
+    }
+
+    Object.values(neighborLayers).forEach(layer => {
+        map.removeLayer(layer);
+    });
+
+    neighborLayers = {};
+    
+    worldContextLayers.forEach(layer => {
+        map.removeLayer(layer);
+    });
+
+    worldContextLayers = [];
+
+    neighborLabelLayer.clearLayers();
+    smallNeighborHintLayer.clearLayers();
+
+    document.getElementById("country-info").style.display = "none";
+}
+
+
 // Start a new random country
 function newCountry() {
+
+    clearMapLayers();
 
     const playableCountries = Object.entries(countries)
         .filter(([code, country]) => {
@@ -125,7 +392,7 @@ function newCountry() {
         })
         .filter(([code]) => {
             return geojsonData.features.some(
-                feature => feature.properties.ISO_A3 === code
+                feature => feature.properties.country_code === code
             );
         });
 
@@ -141,7 +408,19 @@ function newCountry() {
     const [code] = playableCountries[randomIndex];
 
     showCountry(code);
+
+    if (gameMode === "easy") {
+        showWorldContext();
+
+        if (countryLayer) {
+            countryLayer.bringToFront();
+        }
+    }
+
+    neighborLabelLayer.bringToFront();
+
 }
+
 
 // Country dropdown
 document
@@ -158,7 +437,7 @@ document
     });
 
 
-// Check the player's guess
+// Check Round 1 guess
 function checkGuess() {
 
     const input = document.getElementById("guess-input");
@@ -179,7 +458,7 @@ function checkGuess() {
             }
 
             const existsInGeoJSON = geojsonData.features.some(
-                feature => feature.properties.ISO_A3 === code
+                feature => feature.properties.country_code === code
             );
 
             if (!existsInGeoJSON) {
@@ -198,74 +477,169 @@ function checkGuess() {
 
     const guessedCode = guessedCountry[0];
 
-    // Correct or incorrect
-if (currentCountry && guessedCode === currentCountry.code) {
+    // Correct
+    if (
+        currentCountry &&
+        guessedCode === currentCountry.code
+    ) {
 
-    message.textContent = "✓ Correct!";
+        message.textContent = "✓ Correct!";
 
-    // Hide Hint
-    document.getElementById("hint-button").style.display = "none";
+        // Hide Submit
+        document.getElementById("guess-button").style.display =
+            "none";
 
-    // Hide Submit
-    document.getElementById("guess-button").style.display = "none";
+        // Hide Give Up
+        document.getElementById("give-up-button").style.display =
+            "none";
 
-    // Hide Give Up
-    document.getElementById("give-up-button").style.display = "none";
+        // Hide Hint button
+        document.getElementById("hint-button").style.display =
+            "none";
 
-    // Show Continue On
-    document.getElementById("continue-button").style.display = "inline-block";
+        // Show Continue On
+        document.getElementById("continue-button").style.display =
+            "inline-block";
 
-    // Show Explore
-    const exploreButton = document.getElementById("explore-button");
-    const exploreName = document.getElementById("explore-country-name");
+        // Show Explore
+        const exploreButton =
+            document.getElementById("explore-button");
 
-    exploreName.textContent = currentCountry.data.name;
-    exploreButton.style.display = "block";
+        const exploreName =
+            document.getElementById("explore-country-name");
 
-} else {
+        exploreName.textContent =
+            currentCountry.data.name;
 
-    message.textContent = "Incorrect. Try again.";
-}
+        exploreButton.style.display = "block";
+
+    } else {
+
+        message.textContent = "Incorrect. Try again.";
+    }
 
     input.value = "";
     input.focus();
 }
 
+function showWorldContext() {
+
+    worldContextLayers = [];
+
+    geojsonData.features.forEach(feature => {
+
+        const code =
+            feature.properties.country_code;
+
+        // Don't draw the current country again
+        if (
+            currentCountry &&
+            code === currentCountry.code
+        ) {
+            return;
+        }
+
+        const layer = L.geoJSON(feature, {
+            style: {
+                color: "#d0d0d0",
+                weight: 1,
+                fillColor: "#d9d9d9",
+                fillOpacity: 0.6
+            },
+            interactive: false
+        }).addTo(map);
+
+        // Keep track of the layer so clearMapLayers()
+        // can remove it later.
+        worldContextLayers.push(layer);
+
+        const country =
+            countries[code];
+
+        if (country) {
+            addNeighborLabel(
+                layer,
+                country.name
+            );
+        }
+    });
+
+    if (countryLayer) {
+        countryLayer.bringToFront();
+    }
+
+    neighborLabelLayer.bringToFront();
+}
 
 // Give up
 function giveUp() {
+
+    // Round 2
+    if (currentRound === 2) {
+        giveUpNeighborRound();
+        return;
+    }
 
     if (!currentCountry) {
         return;
     }
 
-    const inputWrapper = document.querySelector(".guess-input-wrapper");
-    const guessButton = document.getElementById("guess-button");
-    const giveUpButton = document.getElementById("give-up-button");
+    const inputWrapper =
+        document.querySelector(".guess-input-wrapper");
 
-    const exploreButton = document.getElementById("explore-button");
-    const exploreName = document.getElementById("explore-country-name");
+    const guessButton =
+        document.getElementById("guess-button");
 
-    const message = document.getElementById("message");
+    const giveUpButton =
+        document.getElementById("give-up-button");
 
+    const exploreButton =
+        document.getElementById("explore-button");
+
+    const exploreName =
+        document.getElementById("explore-country-name");
+
+    const message =
+        document.getElementById("message");
+
+    // Hide guessing controls
     inputWrapper.style.display = "none";
     guessButton.style.display = "none";
     giveUpButton.style.display = "none";
+
+    // Hide hints
     document.getElementById("hint-area").style.display = "none";
-    
+
+    // Reveal answer
     message.textContent =
         `The country was: ${currentCountry.data.name}`;
 
-    exploreName.textContent = currentCountry.data.name;
-    exploreButton.style.display = "block";
+    // Set up Explore button
+    exploreName.textContent =
+        currentCountry.data.name;
+
+    exploreButton.style.display = "inline-block";
+
+    // Easy mode shows the world for context.
+    // Hard mode also reveals the world when giving up.
+    showWorldContext();
+
+    if (countryLayer) {
+        countryLayer.bringToFront();
+    }
+
+    neighborLabelLayer.bringToFront();
 }
 
 
 // Set up autocomplete
 function setupAutocomplete() {
 
-    const input = document.getElementById("guess-input");
-    const list = document.getElementById("autocomplete-list");
+    const input =
+        document.getElementById("guess-input");
+
+    const list =
+        document.getElementById("autocomplete-list");
 
     // Create alphabetized list of all countries and territories
     const countryNames = Object.values(countries)
@@ -273,9 +647,15 @@ function setupAutocomplete() {
         .filter(name => name)
         .sort((a, b) => a.localeCompare(b));
 
+    console.log("France:", countries["FRA"]);
+    console.log("Norway:", countries["NOR"]);
+    console.log("Kosovo:", countries["UNK"]);
+    console.log("Total countries loaded:", Object.keys(countries).length);
+
     input.addEventListener("input", () => {
 
-        const query = input.value.trim().toLowerCase();
+        const query =
+            input.value.trim().toLowerCase();
 
         // Clear old suggestions
         list.innerHTML = "";
@@ -285,12 +665,11 @@ function setupAutocomplete() {
             return;
         }
 
-        // Find possible matches
+        // Only show names that START with the typed text
         const matches = countryNames.filter(name =>
             name.toLowerCase().startsWith(query)
         );
 
-        // No matches
         if (matches.length === 0) {
             list.style.display = "none";
             return;
@@ -299,9 +678,12 @@ function setupAutocomplete() {
         // Create suggestion items
         matches.forEach(name => {
 
-            const item = document.createElement("div");
+            const item =
+                document.createElement("div");
 
-            item.className = "autocomplete-item";
+            item.className =
+                "autocomplete-item";
+
             item.textContent = name;
 
             item.addEventListener("click", () => {
@@ -321,45 +703,86 @@ function setupAutocomplete() {
     // Hide suggestions when clicking elsewhere
     document.addEventListener("click", event => {
 
-        if (!event.target.closest(".guess-input-wrapper")) {
+        if (
+            !event.target.closest(
+                ".guess-input-wrapper"
+            )
+        ) {
             list.style.display = "none";
         }
     });
 }
 
 
-// Reset guessing interface
+// Reset Round 1 interface
 function resetGuessInterface() {
 
     hintCount = 0;
 
-    document.getElementById("hint-button").style.display = "inline";
-    document.getElementById("hint-message").textContent = "";
-    document.getElementById("hint-list").innerHTML = "";
-    document.getElementById("hint-area").style.display = "block";
-    document.getElementById("hint-history").style.display = "none";
-    hintCount = 0;
+    const hintButton =
+        document.getElementById("hint-button");
 
-    const inputWrapper = document.querySelector(".guess-input-wrapper");
-    const guessButton = document.getElementById("guess-button");
-    const giveUpButton = document.getElementById("give-up-button");
-    const newCountryButton = document.getElementById("new-country-button");
-    const continueButton = document.getElementById("continue-button");
-    const exploreButton = document.getElementById("explore-button");
+    const hintMessage =
+        document.getElementById("hint-message");
 
-    const message = document.getElementById("message");
-    const input = document.getElementById("guess-input");
-    const list = document.getElementById("autocomplete-list");
+    const hintList =
+        document.getElementById("hint-list");
 
+    const hintArea =
+        document.getElementById("hint-area");
+
+    const hintHistory =
+        document.getElementById("hint-history");
+
+    const inputWrapper =
+        document.querySelector(".guess-input-wrapper");
+
+    const guessButton =
+        document.getElementById("guess-button");
+
+    const giveUpButton =
+        document.getElementById("give-up-button");
+
+    const newCountryButton =
+        document.getElementById("new-country-button");
+
+    const continueButton =
+        document.getElementById("continue-button");
+
+    const exploreButton =
+        document.getElementById("explore-button");
+
+    const message =
+        document.getElementById("message");
+
+    const input =
+        document.getElementById("guess-input");
+
+    const list =
+        document.getElementById("autocomplete-list");
+
+    // Round 1
+    currentRound = 1;
+
+    // Guess controls
     inputWrapper.style.display = "block";
     guessButton.style.display = "inline-block";
-
     giveUpButton.style.display = "inline-block";
     newCountryButton.style.display = "inline-block";
 
+    // Continue / Explore
     continueButton.style.display = "none";
     exploreButton.style.display = "none";
 
+    // Hints
+    hintArea.style.display = "block";
+    hintButton.style.display = "inline";
+
+    hintMessage.textContent = "";
+    hintList.innerHTML = "";
+    hintHistory.style.display = "none";
+
+    // Messages / input
     message.textContent = "";
     input.value = "";
 
@@ -367,6 +790,8 @@ function resetGuessInterface() {
     list.style.display = "none";
 }
 
+
+// Give a hint
 function giveHint() {
 
     if (!currentCountry) {
@@ -380,8 +805,11 @@ function giveHint() {
 
     hintCount++;
 
-    const hintMessage = document.getElementById("hint-message");
-    const hintList = document.getElementById("hint-list");
+    const hintMessage =
+        document.getElementById("hint-message");
+
+    const hintList =
+        document.getElementById("hint-list");
 
     let hintText = "";
 
@@ -390,24 +818,31 @@ function giveHint() {
 
         hintText =
             `The country is in ${currentCountry.data.continent}.`;
-
     }
 
+    // Hint 2: Neighbor
     if (hintCount === 2) {
 
-    const neighbors = currentCountry.data.neighbors || [];
+        const neighbors =
+            currentCountry.data.neighbors || [];
 
         if (neighbors.length === 0) {
 
             hintText =
+            
                 "The country does not border another country.";
 
         } else {
 
             const randomNeighbor =
-                neighbors[Math.floor(Math.random() * neighbors.length)];
+                neighbors[
+                    Math.floor(
+                        Math.random() * neighbors.length
+                    )
+                ];
 
-            const neighborCountry = countries[randomNeighbor];
+            const neighborCountry =
+                countries[randomNeighbor];
 
             if (neighborCountry) {
 
@@ -422,6 +857,7 @@ function giveHint() {
         }
     }
 
+    // Hint 3: Capital
     if (hintCount === 3) {
 
         if (currentCountry.data.capital) {
@@ -438,28 +874,249 @@ function giveHint() {
 
     hintMessage.textContent = hintText;
 
-    // Add hint to permanent history
-    const hintItem = document.createElement("li");
+    // Add hint to history
+    const hintItem =
+        document.createElement("li");
+
     hintItem.textContent = hintText;
 
     hintList.appendChild(hintItem);
-    document.getElementById("hint-history").style.display = "block";
+
+    document.getElementById("hint-history")
+        .style.display = "block";
 
     // Clear temporary message
     setTimeout(() => {
         hintMessage.textContent = "";
     }, 3000);
 
-    // Disable button after 3 hints
+    // Hide button after third hint
     if (hintCount >= 3) {
-        document.getElementById("hint-button").style.display = "none";
+
+        document.getElementById("hint-button")
+            .style.display = "none";
     }
 }
+
+
+// Check Round 2 neighbor guess
+function checkNeighborGuess() {
+
+    const input =
+        document.getElementById("guess-input");
+
+    const message =
+        document.getElementById("message");
+
+    const guess =
+        input.value.trim().toLowerCase();
+
+    if (!guess) {
+        return;
+    }
+
+    const neighborCodes =
+        currentCountry.data.neighbors || [];
+
+    const guessedCode =
+        neighborCodes.find(code => {
+
+            const country =
+                countries[code];
+
+            if (!country) {
+                return false;
+            }
+
+            return (
+                country.name.toLowerCase() === guess
+            );
+        });
+
+    // Not a neighbor
+    if (!guessedCode) {
+
+        message.textContent =
+            "That's not a neighboring country.";
+
+        input.value = "";
+        input.focus();
+
+        return;
+    }
+
+    // Already guessed
+    if (guessedNeighbors.has(guessedCode)) {
+
+        message.textContent =
+            "You already found that country.";
+
+        input.value = "";
+        input.focus();
+
+        return;
+    }
+
+    // Correct neighbor
+    guessedNeighbors.add(guessedCode);
+
+    const layer =
+        neighborLayers[guessedCode];
+
+    if (layer) {
+
+        layer.setStyle({
+            color: "#e09f7d",
+            weight: 2,
+            fillColor: "#e09f7d",
+            fillOpacity: 0.85
+        });
+
+        addNeighborLabel(
+            layer,
+            countries[guessedCode].name
+        );
+    }
+
+    message.textContent = "Correct!";
+
+    input.value = "";
+    input.focus();
+
+    // Check if all neighbors have been found
+    if (
+        guessedNeighbors.size === neighborCodes.length
+    ) {
+        finishNeighborRound();
+    }
+}
+
+
+// Add a country name label to the map
+function addNeighborLabel(layer, name) {
+
+    const center =
+        layer.getBounds().getCenter();
+
+    const label =
+        L.marker(center, {
+            icon: L.divIcon({
+                className: "country-label",
+                html: `<span>${name}</span>`,
+                iconSize: null
+            }),
+            interactive: false
+        });
+
+    neighborLabelLayer.addLayer(label);
+}
+
+
+// Finish Round 2
+function finishNeighborRound() {
+
+    const message =
+        document.getElementById("message");
+
+    const continueButton =
+        document.getElementById("continue-button");
+
+    const guessButton =
+        document.getElementById("guess-button");
+
+    const giveUpButton =
+        document.getElementById("give-up-button");
+
+    const inputWrapper =
+        document.querySelector(".guess-input-wrapper");
+
+    message.textContent =
+        "✓ You found all the neighboring countries!";
+
+    inputWrapper.style.display = "none";
+    guessButton.style.display = "none";
+    giveUpButton.style.display = "none";
+    
+
+    continueButton.style.display =
+        "inline-block";
+}
+
+
+// Give up during Round 2
+function giveUpNeighborRound() {
+
+    if (!currentCountry) {
+        return;
+    }
+
+    const message =
+        document.getElementById("message");
+
+    const neighborCodes =
+        currentCountry.data.neighbors || [];
+
+    // Reveal every neighbor
+    neighborCodes.forEach(code => {
+
+        const layer =
+            neighborLayers[code];
+
+        const country =
+            countries[code];
+
+        if (!layer || !country) {
+            return;
+        }
+
+        // Don't add duplicate labels
+        if (!guessedNeighbors.has(code)) {
+
+            layer.setStyle({
+                color: "#e09f7d",
+                weight: 2,
+                fillColor: "#e09f7d",
+                fillOpacity: 0.85
+            });
+
+            addNeighborLabel(
+                layer,
+                country.name
+            );
+        }
+    });
+
+    guessedNeighbors =
+        new Set(neighborCodes);
+
+    document.getElementById("give-up-button")
+        .style.display = "none";
+
+    document.getElementById("guess-button")
+        .style.display = "none";
+
+    message.textContent =
+        "All neighboring countries revealed.";
+
+    document.getElementById("continue-button")
+        .style.display = "inline-block";
+}
+
 
 // Guess button
 document
     .getElementById("guess-button")
-    .addEventListener("click", checkGuess);
+    .addEventListener("click", () => {
+
+        if (currentRound === 1) {
+
+            checkGuess();
+
+        } else if (currentRound === 2) {
+
+            checkNeighborGuess();
+        }
+    });
 
 
 // Give Up button
@@ -468,49 +1125,144 @@ document
     .addEventListener("click", giveUp);
 
 
-// Allow Enter to submit a guess
+// Allow Enter to submit
 document
     .getElementById("guess-input")
     .addEventListener("keydown", event => {
 
-        if (event.key === "Enter") {
-            checkGuess();
+        if (event.key !== "Enter") {
+            return;
         }
 
+        if (currentRound === 1) {
+
+            checkGuess();
+
+        } else if (currentRound === 2) {
+
+            checkNeighborGuess();
+        }
     });
+
 
 // New country button
 document
     .getElementById("new-country-button")
     .addEventListener("click", newCountry);
 
+
+// Explore button
 document
     .getElementById("explore-button")
     .addEventListener("click", () => {
 
-        // Once the player chooses Explore,
-        // Continue On is no longer available.
-        document.getElementById("continue-button").style.display = "none";
-        document.getElementById("guess-button").style.display = "none";
+        document.getElementById("continue-button")
+            .style.display = "none";
 
-        // The country information panel will go here later.
-        console.log(
-            "Explore:",
-            currentCountry.data.name
-        );
+        document.getElementById("guess-button")
+            .style.display = "none";
+
+        document.getElementById("explore-button")
+            .style.display = "none";
+
+        const country =
+            currentCountry.data;
+
+        // Basic information
+        document.getElementById("country-info-name")
+            .textContent = country.name;
+
+        document.getElementById("country-official-name")
+            .textContent = country.official_name || "N/A";
+
+        document.getElementById("country-capital")
+            .textContent =
+            country.capital || "No capital";
+
+        document.getElementById("country-continent")
+            .textContent =
+            country.continent || "N/A";
+
+        document.getElementById("country-subregion")
+            .textContent =
+            country.subregion || "N/A";
+
+        document.getElementById("country-population")
+            .textContent =
+            country.population != null
+                ? country.population.toLocaleString()
+                : "N/A";
+
+        document.getElementById("country-area")
+            .textContent =
+            country.area_km2 != null
+                ? country.area_km2.toLocaleString()
+                : "N/A";
+
+        // Currency
+        document.getElementById("country-currency")
+            .textContent =
+            country.currency
+                ? `${country.currency.name} (${country.currency.code}) ${country.currency.symbol || ""}`
+                : "N/A";
+
+        // Languages
+        document.getElementById("country-languages")
+            .textContent =
+            country.languages &&
+            country.languages.length
+                ? country.languages.join(", ")
+                : "N/A";
+
+        // Neighbors
+        const neighborNames =
+            (country.neighbors || [])
+                .map(code => countries[code]?.name)
+                .filter(Boolean);
+
+        document.getElementById("country-neighbors")
+            .textContent =
+            neighborNames.length
+                ? neighborNames.join(", ")
+                : "None";
+
+        // Landlocked
+        document.getElementById("country-landlocked")
+            .textContent =
+            country.landlocked ? "Yes" : "No";
+
+        // Flag
+        const flag =
+            document.getElementById("country-flag");
+
+        flag.src = country.flag?.png || "";
+        flag.alt = `${country.name} flag`;
+
+        // Show the information panel
+        document.getElementById("country-info")
+            .style.display = "block";
     });
 
+
+// Continue On button
 document
     .getElementById("continue-button")
     .addEventListener("click", () => {
 
-        console.log("capital round")
+        if (currentRound === 1) {
 
+            startNeighborRound();
+        }
+
+        // Round 3 will go here later.
     });
 
+
+// Hint button
 document
     .getElementById("hint-button")
     .addEventListener("click", giveHint);
+
 
 // Load everything
 loadGameData().then(() => {

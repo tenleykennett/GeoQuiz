@@ -30,6 +30,9 @@ map.getPane("smallNeighborPane").style.zIndex = 650;
 let neighborLabelLayer = L.layerGroup().addTo(map);
 let smallNeighborHintLayer = L.layerGroup().addTo(map);
 
+document.getElementById("hint-remaining")
+    .textContent = "Hints remaining: 3";
+
 // Load game data
 async function loadGameData() {
 
@@ -192,7 +195,40 @@ function startNeighborRound() {
     }
 
     currentRound = 2;
+    
+    const hintArea =
+        document.getElementById("hint-area");
 
+    const hintList =
+        document.getElementById("hint-list");
+
+    const hintRemaining =
+        document.getElementById("hint-remaining");
+
+    const hintButton =
+        document.getElementById("hint-button");
+
+    const hintTitle =
+        document.getElementById("hint-title");
+
+    hintTitle.textContent =
+        "Neighboring Countries";
+
+    // Keep the hint box visible.
+    hintArea.style.display = "block";
+
+    // Clear the old hints.
+    hintList.innerHTML = "";
+
+    // Hide the hint button and remaining count.
+    hintButton.style.display = "none";
+    hintRemaining.style.display = "none";
+
+    // Remove any previous map layout changes.
+    document
+        .querySelector(".map-section")
+        .classList.remove("hints-hidden");
+        
     guessedNeighbors = new Set();
     neighborLayers = {};
 
@@ -204,6 +240,16 @@ function startNeighborRound() {
 
     const currentCode = currentCountry.code;
     const neighborCodes = currentCountry.data.neighbors || [];
+
+    neighborCodes.forEach(() => {
+
+        const item =
+            document.createElement("li");
+
+        item.textContent = "_____";
+
+        hintList.appendChild(item);
+    });
 
     if (neighborCodes.length === 0) {
         setupNeighborRoundUI();
@@ -243,9 +289,6 @@ function startNeighborRound() {
             fillOpacity: 0.8
         }
     }).addTo(map);
-
-    // Center of the main country
-    const mainCenter = countryLayer.getBounds().getCenter();
 
     // Draw neighboring countries in light grey
     neighborCodes.forEach(code => {
@@ -344,7 +387,7 @@ function setupNeighborRoundUI() {
     giveUpButton.style.display = "inline-block";
 
     // Hide things that don't belong in Round 2
-    hintArea.style.display = "none";
+    // hintArea.style.display = "none";
     exploreButton.style.display = "none";
     continueButton.style.display = "none";
 
@@ -722,17 +765,14 @@ function resetGuessInterface() {
     const hintButton =
         document.getElementById("hint-button");
 
-    const hintMessage =
-        document.getElementById("hint-message");
-
     const hintList =
         document.getElementById("hint-list");
 
     const hintArea =
         document.getElementById("hint-area");
 
-    const hintHistory =
-        document.getElementById("hint-history");
+    const hintRemaining =
+        document.getElementById("hint-remaining");
 
     const inputWrapper =
         document.querySelector(".guess-input-wrapper");
@@ -761,8 +801,12 @@ function resetGuessInterface() {
     const list =
         document.getElementById("autocomplete-list");
 
+    document.getElementById("hint-title").textContent =
+        "Hints";
+
     // Round 1
     currentRound = 1;
+
 
     // Guess controls
     inputWrapper.style.display = "block";
@@ -770,23 +814,36 @@ function resetGuessInterface() {
     giveUpButton.style.display = "inline-block";
     newCountryButton.style.display = "inline-block";
 
+
     // Continue / Explore
     continueButton.style.display = "none";
     exploreButton.style.display = "none";
 
-    // Hints
-    hintArea.style.display = "block";
-    hintButton.style.display = "inline";
 
-    hintMessage.textContent = "";
+    // Reset hints
+    hintArea.style.display = "block";
+
+    hintButton.style.display = "inline-block";
+
+    hintRemaining.textContent =
+        "Hints remaining: 3";
+
     hintList.innerHTML = "";
-    hintHistory.style.display = "none";
+
+
+    // Make sure the hint panel is back beside the map
+    document
+        .querySelector(".map-section")
+        .classList.remove("hints-hidden");
+
 
     // Messages / input
     message.textContent = "";
+
     input.value = "";
 
     list.innerHTML = "";
+
     list.style.display = "none";
 }
 
@@ -798,29 +855,27 @@ function giveHint() {
         return;
     }
 
-    // Don't give more than 3 hints
     if (hintCount >= 3) {
         return;
     }
 
     hintCount++;
 
-    const hintMessage =
-        document.getElementById("hint-message");
+    const hintRemaining =
+        document.getElementById("hint-remaining");
 
     const hintList =
         document.getElementById("hint-list");
 
     let hintText = "";
 
-    // Hint 1: Continent
     if (hintCount === 1) {
 
         hintText =
             `The country is in ${currentCountry.data.continent}.`;
+
     }
 
-    // Hint 2: Neighbor
     if (hintCount === 2) {
 
         const neighbors =
@@ -829,7 +884,6 @@ function giveHint() {
         if (neighbors.length === 0) {
 
             hintText =
-            
                 "The country does not border another country.";
 
         } else {
@@ -853,11 +907,11 @@ function giveHint() {
 
                 hintText =
                     "The country does not border another country.";
+
             }
         }
     }
 
-    // Hint 3: Capital
     if (hintCount === 3) {
 
         if (currentCountry.data.capital) {
@@ -869,12 +923,17 @@ function giveHint() {
 
             hintText =
                 "This country does not have a listed capital.";
+
         }
     }
 
-    hintMessage.textContent = hintText;
 
-    // Add hint to history
+    // Update remaining count.
+    hintRemaining.textContent =
+        `Hints remaining: ${3 - hintCount}`;
+
+
+    // Add the new hint to the numbered list.
     const hintItem =
         document.createElement("li");
 
@@ -882,19 +941,13 @@ function giveHint() {
 
     hintList.appendChild(hintItem);
 
-    document.getElementById("hint-history")
-        .style.display = "block";
 
-    // Clear temporary message
-    setTimeout(() => {
-        hintMessage.textContent = "";
-    }, 3000);
-
-    // Hide button after third hint
+    // Hide the button after the third hint.
     if (hintCount >= 3) {
 
         document.getElementById("hint-button")
             .style.display = "none";
+
     }
 }
 
@@ -960,9 +1013,23 @@ function checkNeighborGuess() {
     // Correct neighbor
     guessedNeighbors.add(guessedCode);
 
+    // Fill in the corresponding neighbor in the list
+    const neighborIndex =
+        neighborCodes.indexOf(guessedCode);
+
+    const hintList =
+        document.getElementById("hint-list");
+
+    const hintItem =
+        hintList.children[neighborIndex];
+
+    if (hintItem) {
+        hintItem.textContent =
+            countries[guessedCode].name;
+    }
+
     const layer =
         neighborLayers[guessedCode];
-
     if (layer) {
 
         layer.setStyle({
@@ -1071,7 +1138,6 @@ function giveUpNeighborRound() {
 
         // Don't add duplicate labels
         if (!guessedNeighbors.has(code)) {
-
             layer.setStyle({
                 color: "#e09f7d",
                 weight: 2,
@@ -1079,10 +1145,23 @@ function giveUpNeighborRound() {
                 fillOpacity: 0.85
             });
 
-            addNeighborLabel(
-                layer,
-                country.name
-            );
+            addNeighborLabel(layer, country.name);
+
+            const neighborIndex =
+                neighborCodes.indexOf(code);
+
+            const hintItem =
+                document.getElementById("hint-list")
+                    .children[neighborIndex];
+
+            if (hintItem) {
+                hintItem.textContent =
+                    country.name;
+
+                hintItem.classList.add(
+                    "ungussed-neighbor"
+                );
+            }
         }
     });
 

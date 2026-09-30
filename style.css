@@ -240,7 +240,7 @@ nav {
 
 .country-selector {
     display: flex;
-    justify-content: center;
+    justify-content:end;
     align-items: center;
     gap: 10px;
     margin-bottom: 20px;
@@ -261,11 +261,27 @@ nav {
     cursor: pointer;
 }
 
+.map-section {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 10px;
+
+    width: 100%;
+    margin-bottom: 30px;
+}
+
+.map-section.hints-hidden #map {
+    margin: 0 auto;
+}
+
 #map {
     width: 700px;
     max-width: 90%;
     height: 350px;
-    margin: 0 auto;
+
+    margin: 0;
+
     border-radius: 16px;
     border: 2px solid var(--muted-olive);
     background: var(--champagne-mist);
@@ -283,13 +299,88 @@ nav {
 
 /* Main guessing controls */
 
+/* .guess-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+} */
+
+.game-content {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 50px;
+    width: 100%;
+}
+
 .guess-area {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 10px;
+    width: 520px;
 }
 
+#hint-area {
+    width: 230px;
+    min-height: 35px;
+    padding: 20px;
+
+    border: 2px solid var(--muted-olive);
+    border-radius: 10px;
+
+    background: var(--champagne-mist);
+
+    box-sizing: border-box;
+    text-align: left;
+}
+
+#hint-area h3 {
+    margin: 0 0 8px 0;
+
+    color: var(--mauve-shadow);
+    font-size: 20px;
+}
+
+#hint-remaining {
+    margin: 0 0 15px 0;
+
+    color: var(--mauve-shadow);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#hint-list {
+    margin: 0 0 15px 0;
+    padding-left: 25px;
+
+    color: var(--mauve-shadow);
+}
+
+#hint-list li {
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+#hint-button {
+    padding: 9px 15px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: var(--sage-green);
+    color: white;
+
+    font-family: inherit;
+    font-size: 14px;
+
+    cursor: pointer;
+}
+
+#hint-button:hover {
+    background: var(--light-bronze);
+}
 
 /* Input + Submit */
 
@@ -453,11 +544,6 @@ nav {
 }
 
 
-#hint-area {
-    text-align: center;
-    margin-top: 12px;
-}
-
 #hint-button {
     border: none;
     background: none;
@@ -496,7 +582,13 @@ nav {
 }
 
 #hint-list li {
-    margin-top: 4px;
+    margin-bottom: 8px;
+    line-height: 1.4;
+    color: var(--mauve-shadow);
+}
+
+#hint-list li.ungussed-neighbor {
+    color: var(--light-bronze);
 }
 
 .country-label {

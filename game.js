@@ -190,12 +190,22 @@ function showCountry(code) {
 // Start Round 2
 function startNeighborRound() {
 
+    console.log("STARTING ROUND 2 — currentRound BEFORE:", currentRound);
+
+    if (!currentCountry) return;
+
+    currentRound = 2;
+
+    console.log("ROUND 2 SET — currentRound AFTER:", currentRound);
     if (!currentCountry) {
         return;
     }
 
     currentRound = 2;
     
+    document.getElementById("round-title").textContent =
+        `Name the neighbors of ${currentCountry.data.name}`;
+
     const hintArea =
         document.getElementById("hint-area");
 
@@ -426,6 +436,19 @@ function clearMapLayers() {
 
 // Start a new random country
 function newCountry() {
+    currentRound = 1
+    // Restore normal Round 1 layout
+    document.getElementById("map").style.display = "block";
+    document.getElementById("flag-area").style.display = "none";
+    document.querySelector(".guess-input-wrapper").style.display = "block";
+    document.getElementById("guess-input").style.display = "block";
+
+    document.getElementById("guess-button").style.display = "inline-block";
+    document.getElementById("give-up-button").style.display = "inline-block";
+    document.getElementById("new-country-button").style.display = "inline-block";
+    document.getElementById("continue-button").style.display = "none";
+    document.getElementById("explore-button").style.display = "none";
+
 
     clearMapLayers();
 
@@ -443,6 +466,9 @@ function newCountry() {
         return;
     }
 
+    document.getElementById("map").style.display = "block";
+
+    document.getElementById("flag-area").style.display = "none";
     // Pick a random country
     const randomIndex = Math.floor(
         Math.random() * playableCountries.length
@@ -803,11 +829,13 @@ function resetGuessInterface() {
 
     document.getElementById("hint-title").textContent =
         "Hints";
-
+    
     // Round 1
     currentRound = 1;
-
-
+    
+    document.getElementById("round-title").textContent =
+        "Guess the country";
+    
     // Guess controls
     inputWrapper.style.display = "block";
     guessButton.style.display = "inline-block";
@@ -1113,6 +1141,16 @@ function finishNeighborRound() {
 // Give up during Round 2
 function giveUpNeighborRound() {
 
+    console.log("GIVE UP NEIGHBOR ROUND — currentRound BEFORE:", currentRound);
+
+    if (!currentCountry) {
+        return;
+    }
+
+    currentRound = 2;
+
+    console.log("GIVE UP NEIGHBOR ROUND — currentRound AFTER:", currentRound);
+
     if (!currentCountry) {
         return;
     }
@@ -1174,13 +1212,128 @@ function giveUpNeighborRound() {
     document.getElementById("guess-button")
         .style.display = "none";
 
+    document.getElementById("guess-input").style.display = "none";
+
+    document.getElementById("continue-button").style.display = "inline-block";
+
     message.textContent =
         "All neighboring countries revealed.";
 
-    document.getElementById("continue-button")
-        .style.display = "inline-block";
 }
 
+function startFlagRound() {
+
+    if (!currentCountry) {
+        return;
+    }
+
+    currentRound = 3;
+
+    document.getElementById("round-title").textContent =
+    `Select the flag of ${currentCountry.data.name}`;
+
+    const flagArea =
+        document.getElementById("flag-area");
+
+    const mapElement =
+        document.getElementById("map");
+
+    const hintArea =
+        document.getElementById("hint-area");
+
+    document.getElementById("continue-button").style.display = "none";
+
+    // Hide the Leaflet map.
+    mapElement.style.display = "none";
+
+    // Show the flag area.
+    flagArea.style.display = "flex";
+
+    // Leave the right-side box blank for now.
+    hintArea.style.display = "block";
+    document.getElementById("hint-title").textContent = "";
+    document.getElementById("hint-remaining").textContent = "";
+    document.getElementById("hint-list").innerHTML = "";
+    document.getElementById("hint-button").style.display = "none";
+
+    // Clear any previous flags.
+    flagArea.innerHTML = "";
+
+    const targetCode =
+        currentCountry.code;
+
+    // Get all countries that have flags.
+    const availableCountries =
+        Object.entries(countries)
+            .filter(([code, country]) => {
+                return country.flag;
+            });
+
+    // Get 4 random countries that are not the target.
+    const otherCountries =
+        availableCountries
+            .filter(([code]) => code !== targetCode)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 4);
+
+    // Add the target country.
+    const flagChoices = [
+        [targetCode, countries[targetCode]],
+        ...otherCountries
+    ];
+
+    // Randomize all 5 choices.
+    flagChoices.sort(() => Math.random() - 0.5);
+
+    flagChoices.forEach(([code, country]) => {
+
+        const flag =
+            document.createElement("img");
+
+        flag.className = "flag-option";
+
+        flag.src = country.flag.svg;
+
+        flag.alt = "Flag option";
+
+        flag.dataset.code = code;
+
+        flag.addEventListener("click", () => {
+
+            if (code === targetCode) {
+
+                document.getElementById("message")
+                    .textContent = "Correct!";
+
+                flagChoices.forEach(([otherCode]) => {
+
+                    const otherFlag =
+                        flagArea.querySelector(
+                            `[data-code="${otherCode}"]`
+                        );
+
+                    if (otherFlag) {
+                        otherFlag.style.pointerEvents =
+                            "none";
+                    }
+                });
+
+                return;
+            }
+
+            flag.classList.add("wrong");
+
+            document.getElementById("message")
+                .textContent =
+                "That's not the correct flag.";
+        });
+
+        flagArea.appendChild(flag);
+    });
+
+    document.getElementById("message")
+        .textContent = "";
+}
 
 // Guess button
 document
@@ -1328,14 +1481,22 @@ document
     .getElementById("continue-button")
     .addEventListener("click", () => {
 
-        if (currentRound === 1) {
+        console.log("CONTINUE CLICKED — currentRound:", currentRound);
 
+        if (currentRound === 1) {
+            console.log("Going from Round 1 → Round 2");
             startNeighborRound();
+            return;
         }
 
-        // Round 3 will go here later.
-    });
+        if (currentRound === 2) {
+            console.log("Going from Round 2 → Round 3");
+            startFlagRound();
+            return;
+        }
 
+        console.log("UNKNOWN ROUND:", currentRound);
+    });
 
 // Hint button
 document

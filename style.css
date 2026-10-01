@@ -240,7 +240,7 @@ nav {
 
 .country-selector {
     display: flex;
-    justify-content:end;
+    justify-content:center;
     align-items: center;
     gap: 10px;
     margin-bottom: 20px;
@@ -268,7 +268,7 @@ nav {
     gap: 10px;
 
     width: 100%;
-    margin-bottom: 30px;
+    margin-bottom: 15px;
 }
 
 .map-section.hints-hidden #map {
@@ -656,4 +656,58 @@ nav {
     object-fit: contain;
     margin: 0 auto 20px auto;
     filter: drop-shadow(4px 4px 4px rgba(0, 0, 0, 0.50));
+}
+
+#flag-area {
+    width: 700px;
+    max-width: 90%;
+    height: 350px;
+
+    display: none;
+
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 25px;
+
+    border-radius: 16px;
+    border: 2px solid var(--muted-olive);
+    background: var(--champagne-mist);
+
+    box-sizing: border-box;
+    padding: 30px;
+}
+
+.flag-option {
+    width: 180px;
+    height: 100px;
+
+    object-fit: cover;
+
+    cursor: pointer;
+
+    filter:
+        drop-shadow(
+            4px 4px 4px rgba(0, 0, 0, 0.50)
+        );
+
+    transition:
+        opacity 0.4s ease,
+        transform 0.2s ease;
+}
+
+.flag-option:hover {
+    transform: scale(1.03);
+}
+
+.flag-option.wrong {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#round-title {
+    font-weight: bold;
+    font-size: 1.4rem;
+    margin-bottom: 15px;
+    color: var(--mauve-shadow);
 }
